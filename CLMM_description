@@ -1,0 +1,25 @@
+The notebook implements a 4-phase workflow designed for offline Kaggle environments (without internet access):
+
+**Phase 1: Rule-Based Multilingual Text Pseudo-Labeling**  
+This phase involves parsing unlabelled radiology reports in multiple languages (English, Spanish, French, German, Portuguese, Italian) using a high-throughput keyword matching and negation-cue system. It converts textual findings into reliable multi-label targets for thousands of weakly-supervised training studies.
+
+**Phase 2: Optimised DICOM Processing & DataLoaders**  
+This phase features memory-efficient reading of DICOM files, including VOI LUT contrast adjustment, intensity normalisation, and early decode-time downsampling (using cv2.INTER_AREA) to minimise memory usage. It integrates an Albumentations augmentation pipeline, which includes flipping, shifts, rotations, and brightness/contrast adjustments, paired with PyTorch GPU-pinned DataLoaders.
+
+**Phase 3: CMLL Vision Classifier with DINOv2-Large Backbone**  
+This phase employs a DINOv2-Large feature extractor in conjunction with Causal Multi-Label Learning (CMLL). An Asymmetric Loss (ASL) function is used to address extreme class imbalance across rare knee pathologies.
+
+**Phase 4: Test Inference & Submission Generation**  
+In this phase, global and regional attention predictions are combined using category-specific max-pooling to output precise probabilities that match the format of sample_submission.csv.
+
+**Benefits of the Architecture Used**  
+
+- **Mitigating Extreme Label Sparsity via Pseudo-Labeling**: With only 58 expert-labelled validation cases available against thousands of raw text reports, the rule-based multilingual text parser successfully generates thousands of weakly-labelled training samples, enabling robust deep learning supervision.
+
+- **Causal Multi-Label Learning (CMLL)**: Instead of treating labels independently or being misled by image background confounders, CMLL explicitly models causal relationships using a learned confounder dictionary (denoted as $Z$) and does-calculus back-door adjustments. This approach separates core pathological features from co-occurrence artefacts.
+
+- **Region-Aware Attentional Pooling**: By creating class-specific feature maps from the global activation space (without costly secondary crop-and-re-encode steps), the model concentrates on localised anatomical structures, such as specific meniscal tears or ligament injuries.
+
+- **Category-Specific Max-Pooling at Inference**: This method combines global image context with the top-N local region predictions via max-pooling, ensuring that the strongest local anomaly indicators are preserved without being overshadowed by background noise.
+
+- **Offline Robustness & High Memory Efficiency**: Early downsampling during the DICOM decode stage and robust offline preflight checks help prevent out-of-memory (OOM) errors and runtime crashes in restricted Kaggle submission environments.
